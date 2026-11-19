@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite the paper."
+title: "Which Images Can a Family of 3D Shapes Produce? Code"
+authors:
+  - family-names: Werman
+    given-names: Michael
+    affiliation: "The Hebrew University of Jerusalem"
+year: 2026
+license: MIT
+preferred-citation:
+  type: article
+  title: "Which Images Can a Family of 3D Shapes Produce? Realizability, Boundaries and Focal Length under Perspective"
+  authors:
+    - family-names: Werman
+      given-names: Michael
+  year: 2026
