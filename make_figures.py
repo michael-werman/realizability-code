@@ -3,7 +3,7 @@ import numpy as np, matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon, Ellipse, FancyArrowPatch
-plt.rcParams.update({'font.size': 9, 'font.family': 'serif', 'mathtext.fontset': 'cm'})
+plt.rcParams.update({'font.size': 9, 'font.family': 'STIXGeneral', 'mathtext.fontset': 'stix', 'pdf.fonttype': 42, 'ps.fonttype': 42, 'axes.unicode_minus': False})
 C1, C2, C3, GREY = '#1f77b4', '#d95f02', '#1b9e77', '#999999'
 
 # ---------- Figure 1: the realizable set of sphere outlines, p known, f free

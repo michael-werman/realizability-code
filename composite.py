@@ -4,6 +4,7 @@ Tests: box -> (p, f) from the vanishing points (orthocenter); sphere -> long axi
 import numpy as np, matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+plt.rcParams.update({'pdf.fonttype': 42, 'ps.fonttype': 42, 'axes.unicode_minus': False, 'mathtext.fontset': 'stix', 'font.family': 'STIXGeneral'})
 from matplotlib.patches import Polygon, Ellipse
 rng = np.random.default_rng(7)
 W, H = 1000, 750
@@ -49,8 +50,8 @@ sphere_true = (np.array([2.0, 0.9, 10.5]), 0.9)               # photographed wit
 C_true = sphere_conic(KA, *sphere_true)
 # ---- pasted sphere: photographed by camera B (shorter focal length), then translated in the image
 fB, pB = 420.0, np.array([500.0, 375.0]); KB = Kmat(fB, pB)
-C_B = sphere_conic(KB, np.array([-2.4, 1.8, 6.0]), 0.8)
-ctrB, _, _ = ellipse_params(C_B); target = np.array([840.0, 600.0]); T = np.array([[1, 0, target[0]-ctrB[0]], [0, 1, target[1]-ctrB[1]], [0, 0, 1]])
+C_B = sphere_conic(KB, np.array([1.6, 1.0, 6.0]), 0.75)
+ctrB, _, _ = ellipse_params(C_B); rdir = (ctrB - pB)/np.linalg.norm(ctrB - pB); target = pA + 400.0*rdir; T = np.array([[1, 0, target[0]-ctrB[0]], [0, 1, target[1]-ctrB[1]], [0, 0, 1]])
 Ti = np.linalg.inv(T); C_fake = Ti.T @ C_B @ Ti; C_fake /= np.linalg.norm(C_fake)
 
 def box_estimate(sig=0.5):
@@ -79,8 +80,10 @@ for name, R in rows.items():
           ' | axis misses p by %.1f +- %.1f px, f_sphere = %.1f +- %.1f' % (R[:, 3].mean(), R[:, 3].std(), np.nanmean(R[:, 4]), np.nanstd(R[:, 4])))
 np.save('rows.npy', {k: np.array(v) for k, v in rows.items()}, allow_pickle=True)
 
-# ---- render the composite image and an annotated copy
+# ---- render: (a) the composite, (b) the image test, (c) the loci
 p_hat, f_hat, v_hat = box_estimate()
+R = {k: np.array(v) for k, v in rows.items()}
+COL = {'real': '#1f5fb4', 'pasted': '#c0392b'}
 def draw_scene(ax, annotate):
     ax.set_xlim(0, W); ax.set_ylim(H, 0); ax.set_aspect('equal'); ax.set_xticks([]); ax.set_yticks([])
     ax.add_patch(plt.Rectangle((0, 0), W, H, color='#e9e4da'))
@@ -94,21 +97,37 @@ def draw_scene(ax, annotate):
             shade = 0.45 + 0.5*max(0, -nrm @ light)
             ax.add_patch(Polygon(xbox[list(fc)], closed=True, fc=(0.55*shade, 0.38*shade, 0.25*shade), ec='#3a2a1c', lw=1.2))
     for C, col in ((C_true, (0.25, 0.42, 0.72)), (C_fake, (0.72, 0.28, 0.25))):
-        ctr, axs, V = ellipse_params(C); ang = np.degrees(np.arctan2(V[1, 0], V[0, 0]))
+        ctr, axs_, V = ellipse_params(C); ang = np.degrees(np.arctan2(V[1, 0], V[0, 0]))
         for k, sc in enumerate(np.linspace(1.0, 0.15, 14)):
-            g = 0.55 + 0.45*k/13; off = (1 - sc)*np.array([-0.35*axs[1], -0.35*axs[1]])
-            ax.add_patch(Ellipse(ctr + off, 2*axs[0]*sc, 2*axs[1]*sc, angle=ang, color=tuple(min(1, c*g + 0.25*k/13) for c in col), lw=0))
+            g = 0.55 + 0.45*k/13; off = (1 - sc)*np.array([-0.35*axs_[1], -0.35*axs_[1]])
+            ax.add_patch(Ellipse(ctr + off, 2*axs_[0]*sc, 2*axs_[1]*sc, angle=ang, color=tuple(min(1, c*g + 0.25*k/13) for c in col), lw=0))
     if annotate:
-        ax.plot(*p_hat, 'k+', ms=14, mew=2.5); ax.annotate(r'$p$, $f=900$ from the box', p_hat, xytext=(p_hat[0] - 430, p_hat[1] - 120), fontsize=12,
-                                                       arrowprops=dict(arrowstyle='->', lw=0.8))
-        for C, col, lab in ((C_true, '#1f5fb4', 'real sphere: axis passes through $p$'), (C_fake, '#c0392b', 'pasted sphere: axis misses $p$')):
+        ax.plot(*p_hat, 'k+', ms=14, mew=2.5)
+        ax.annotate(r'$p$ from the box', p_hat, xytext=(p_hat[0] - 380, p_hat[1] - 120), fontsize=12, arrowprops=dict(arrowstyle='->', lw=0.8))
+        for name, C in (('real', C_true), ('pasted', C_fake)):
             off, fs, ctr, aE, bE, u = sphere_test(C, p_hat); L = 1600
-            ax.plot([ctr[0] - L*u[0], ctr[0] + L*u[0]], [ctr[1] - L*u[1], ctr[1] + L*u[1]], color=col, lw=1.2, ls='--')
-        R = {k: np.array(v) for k, v in rows.items()}
-        ax.text(560, 250, 'real ball: axis through $p$\n$f=%.0f$ from its outline' % np.nanmean(R['real'][:, 4]), fontsize=11, color='#1f5fb4')
-        ax.text(30, 715, 'pasted ball: axis misses $p$ by %.0f px\n$f=%.0f$ from its outline, not 900' % (R['pasted'][:, 3].mean(), np.nanmean(R['pasted'][:, 4])), fontsize=11, color='#c0392b')
-fig, axs = plt.subplots(1, 2, figsize=(12, 4.6))
-draw_scene(axs[0], False); axs[0].set_title('(a) composite: box and two balls', fontsize=13)
-draw_scene(axs[1], True); axs[1].set_title('(b) the test: only the real ball fits the box\'s camera', fontsize=13)
+            ax.plot([ctr[0] - L*u[0], ctr[0] + L*u[0]], [ctr[1] - L*u[1], ctr[1] + L*u[1]], color=COL[name], lw=1.2, ls='--')
+        ax.text(20, 730, 'both long axes pass through $p$', fontsize=12)
+fig = plt.figure(figsize=(15, 4.6))
+gs = fig.add_gridspec(1, 3, width_ratios=[1, 1, 0.95])
+a0, a1, a2 = fig.add_subplot(gs[0]), fig.add_subplot(gs[1]), fig.add_subplot(gs[2])
+draw_scene(a0, False); a0.set_title('(a) composite: box and two balls', fontsize=13)
+draw_scene(a1, True); a1.set_title('(b) the axis test passes for both balls', fontsize=13)
+# (c) loci: each ball's focal hyperbola in its axial plane, with t = signed distance from p along the axis
+for name, C in (('real', C_true), ('pasted', C_fake)):
+    off, fs, ctr, aE, bE, u = sphere_test(C, p_hat); eE = np.sqrt(aE**2 - bE**2); d = abs(u @ (p_hat - ctr))
+    x = np.linspace(eE, d + 400, 600); t = d - x                       # t = 0 at p, t > 0 towards the ball
+    z = bE*np.sqrt(np.maximum(x**2/eE**2 - 1, 0))
+    lab = 'real ball: $f=%.0f$ at $p$' % np.nanmean(R['real'][:, 4]) if name == 'real' else 'pasted ball: $f=%.0f$ at $p$' % np.nanmean(R['pasted'][:, 4])
+    a2.plot(t, z, color=COL[name], lw=2, label=lab)
+for name in ('real', 'pasted'):
+    fs_ = R[name][:, 4]; a2.errorbar([0], [np.nanmean(fs_)], yerr=[2*np.nanstd(fs_)], fmt='s', color=COL[name], ms=6, capsize=4, mfc='white')
+fb = R['real'][:, 2]
+a2.errorbar([0], [fb.mean()], yerr=[2*fb.std()], fmt='ko', ms=7, capsize=4, label=r'box: $O=(p,f)$, $f=%.0f$' % fb.mean())
+a2.axvline(0, color='0.6', lw=0.8, ls=':')
+a2.set_xlim(-400, 260); a2.set_ylim(0, 1700); a2.set_xlabel('position along the ball\'s long axis, from $p$ (px)', fontsize=11)
+a2.set_ylabel('$f$ (px)', fontsize=11); a2.legend(fontsize=10, loc='upper left', frameon=False)
+a2.set_title('(c) the loci: only the real ball meets the box', fontsize=13)
+for sp in ['top', 'right']: a2.spines[sp].set_visible(False)
 fig.tight_layout(); fig.savefig('composite_demo.png', dpi=150); fig.savefig('composite_demo.pdf')
 print('p_hat', p_hat.round(1), 'f_hat', round(f_hat, 1))
